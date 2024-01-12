@@ -18,18 +18,41 @@ keras.utils.set_random_seed(SEED)
 class AdversarialAugmenter(keras_cv.layers.BaseImageAugmentationLayer):
     def __init__(self, adv_model, sigma,  **kwargs):
         super().__init__(**kwargs)
-        self.sigma = sigma
         self.adv_model = adv_model
+        self.sigma = sigma
     
-    def augment_image(self, image, *args, transformation=None, **kwargs):
+    def augment_image(self, image, transformations=None, **kwargs):
         adv_image = self.adv_model.generate_adv_image(image, self.sigma)
 
-        if self.backbone == "mit_b0":
+        if self.adv_model.backbone == "mit_b0":
             adv_image = tf.image.resize(adv_image, (224, 224))
 
         adv_image = tf.cast(adv_image, tf.uint8)
+        adv_image = adv_image[0]
 
         return adv_image
+    
+    def augment_label(self, label, transformations=None, **kwargs):
+        return label
+    
+    def augment_images(self, images, transformations=None, **kwargs):
+        return self.augment_image(images)
+    
+    def augment_labels(self, labels, transformations=None, **kwargs):
+        return labels
+    
+    def augment_segmentation_masks(
+        self, segmentation_masks, transformations=None, **kwargs
+    ):
+        return segmentation_masks
+    
+    def get_config(self):
+        config = {
+            "adv_model": self.adv_model,
+            "sigma": self.sigma,
+        }
+        base_config = super().get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 class ImageModel():
     def __init__(self, backbone) -> None:
