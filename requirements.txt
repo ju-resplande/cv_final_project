@@ -1,0 +1,6 @@
+tensorflow[and-cuda]
+tensorflow-addons
+scikit-learn
+keras_cv
+ipykernel
+matplotlib
