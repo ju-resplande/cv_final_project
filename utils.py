@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import tensorflow as tf
 import numpy as np
 
@@ -23,6 +24,8 @@ def load_image(image_path, backbone=None):
     return image
 
 def display_image(image, eps, label, confidence):
+  mpl.rcParams['figure.figsize'] = (8, 8)
+  mpl.rcParams['axes.grid'] = False
   plt.figure()
   image_to_show = tf.Variable(image[0])
   image_to_show = tf.cast(image_to_show, tf.uint8)

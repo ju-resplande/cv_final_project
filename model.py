@@ -73,22 +73,21 @@ class ImageClassifierFGSMFramework():
 
         return inputs['images'], inputs['labels']
 
-    def generate_adv_image(self, image, epsilon, return_pertubations=False):
+    def generate_adv_image(self, image, labels, epsilon, return_pertubations=False):
         self.model.trainable = False
 
         if len(image.shape) == 3:
             image = image[None, ...]
 
-        image_probs = self.model(image)
-        class_num = tf.math.argmax(image_probs[0])
+        labels = tf.convert_to_tensor(labels)
+        if len(image.shape) == 0:
+            labels = labels[None, ...]
 
-        label = tf.one_hot(class_num, image_probs.shape[-1])
-        label = tf.reshape(label, (1, image_probs.shape[-1]))
-
+        labels = tf.one_hot(labels, N_CLASS)
         with tf.GradientTape() as tape:
             tape.watch(image)
             prediction = self.model(image)
-            loss = self.model.compiled_loss(label, prediction)
+            loss = self.model.compiled_loss(labels, prediction)
 
         gradient = tape.gradient(loss, image)
         perturbations = tf.sign(gradient)
@@ -128,17 +127,30 @@ class ImageClassifierFGSMFramework():
 
         return image_class, class_confidence, image_probs
 
-    def evaluate(self, images, labels, epsilon=None):
-        self.model.trainable = False
-        
-        if epsilon:
-            images = self.generate_adv_image(images, epsilon)
-        
-        image_probs = self.model(images).numpy()
-        predictions = np.argmax(image_probs, axis=1)
+def evaluate(self, images, labels, epsilon=None):
+    self.model.trainable = False
+    
+    if epsilon:
+        images = tf.data.Dataset.from_tensor_slices(images)
+        labels2 = tf.data.Dataset.from_tensor_slices(labels)
+        data = tf.data.Dataset.zip((images, labels2))
+        adv_images = data.batch(BATCH_SIZE).map(
+            lambda images, labels2: self.generate_adv_image(images, labels2, epsilon),
+            num_parallel_calls=tf.data.AUTOTUNE
+        ).prefetch(tf.data.AUTOTUNE)
 
-        report = classification_report(
-            labels, predictions, output_dict=True
-        )
+        images = tf.zeros([])
+        for batch in adv_images:
+            if not len(images.shape):
+                images = batch
+            else:
+                images = tf.concat([images, batch], 0)
 
-        return report
+    image_probs = self.model(images).numpy()
+    predictions = np.argmax(image_probs, axis=1)
+
+    report = classification_report(
+        labels, predictions, output_dict=True
+    )
+
+    return report
