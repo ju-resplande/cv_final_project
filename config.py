@@ -11,6 +11,8 @@ CLASSES = {
     2: "scissors",
 }
 
+CLASS2ID = {label:idx for idx, label in CLASSES.items()}
+
 N_CLASS = len(CLASSES)
 
 ## models

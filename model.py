@@ -15,45 +15,6 @@ import utils
 
 tf.keras.utils.set_random_seed(SEED)
 
-class AugmenterFGSM(keras_cv.layers.BaseImageAugmentationLayer):
-    def __init__(self, adv_model, epsilon,  **kwargs):
-        super().__init__(**kwargs)
-        self.adv_model = adv_model
-        self.epsilon = epsilon
-    
-    def augment_image(self, image, transformations=None, **kwargs):
-        adv_image = self.adv_model.generate_adv_image(image, self.epsilon)
-
-        if self.adv_model.backbone == "mit_b0":
-            adv_image = tf.image.resize(adv_image, (224, 224))
-
-        adv_image = tf.cast(adv_image, tf.uint8)
-        adv_image = adv_image[0]
-
-        return adv_image
-    
-    def augment_label(self, label, transformations=None, **kwargs):
-        return label
-    
-    def augment_images(self, images, transformations=None, **kwargs):
-        return self.augment_image(images)
-    
-    def augment_labels(self, labels, transformations=None, **kwargs):
-        return labels
-    
-    def augment_segmentation_masks(
-        self, segmentation_masks, transformations=None, **kwargs
-    ):
-        return segmentation_masks
-    
-    def get_config(self):
-        config = {
-            "adv_model": self.adv_model,
-            "epsilon": self.epsilon,
-        }
-        base_config = super().get_config()
-        return dict(list(base_config.items()) + list(config.items()))
-
 class ImageClassifierFGSM(keras_cv.models.ImageClassifier):
     def __init__(self, *args, **kwargs):
         self.epsilon = kwargs.pop("epsilon", 0)
@@ -83,8 +44,7 @@ class ImageClassifierFGSM(keras_cv.models.ImageClassifier):
         return {m.name: m.result() for m in self.metrics}
 
 class ImageClassifierFGSMFramework():
-    def __init__(self, backbone, epsilon=0) -> None:
-        self.augment_modules = AUGMENT_MODULES
+    def __init__(self, backbone, epsilon) -> None:
         self.backbone = backbone
         self.epsilon = epsilon
 
@@ -100,17 +60,12 @@ class ImageClassifierFGSMFramework():
             metrics=METRICS
         )
         
-    def preprocess_data(self, images, labels, augment=False, epsilon=None):
+    def preprocess_data(self, images, labels, augment=False):
         labels = tf.one_hot(labels, N_CLASS)
         inputs = {"images": images, "labels": labels}
 
         if augment:
-            augmenter = self.augment_modules.copy()
-            
-            if epsilon:
-                augmenter.append(AugmenterFGSM(self, epsilon))
-
-            augmenter = keras_cv.layers.Augmenter(augmenter)
+            augmenter = keras_cv.layers.Augmenter(AUGMENT_MODULES)
             inputs = augmenter(inputs)
 
         if self.backbone == "mit_b0":
@@ -174,14 +129,13 @@ class ImageClassifierFGSMFramework():
         return image_class, class_confidence, image_probs
 
     def evaluate(self, images, labels, epsilon=None):
-        predictions = list()
-        for image in images:
-            if epsilon:
-                image = self.generate_adv_image(image, epsilon)
-
-            image_probs = self.model(image).numpy()
-            class_num = np.argmax(image_probs[0])
-            predictions.append(class_num)
+        self.model.trainable = False
+        
+        if epsilon:
+            images = self.generate_adv_image(images, epsilon)
+        
+        image_probs = self.model(images).numpy()
+        predictions = np.argmax(image_probs, axis=1)
 
         report = classification_report(
             labels, predictions, output_dict=True

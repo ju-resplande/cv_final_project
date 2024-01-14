@@ -5,6 +5,7 @@ import pickle
 import json
 
 import tensorflow_datasets as tfds
+from typer import Typer
 import tensorflow as tf
 
 tf.keras.utils.set_random_seed(SEED)
@@ -13,7 +14,10 @@ from model import ImageClassifierFGSMFramework
 from config import *
 from utils import load_image
 
-def train(backbone: str, output_dir: str, epsilon: float=None):
+cli = Typer()
+
+@cli.command()
+def train(backbone: str, epsilon: float, output_dir: str):
     model = ImageClassifierFGSMFramework(backbone=backbone, epsilon=epsilon)
     
     train_dataset, test_dataset = tfds.load(
@@ -22,7 +26,6 @@ def train(backbone: str, output_dir: str, epsilon: float=None):
         split=["train", "test"],
     )
        
-
     train_dataset = train_dataset.batch(BATCH_SIZE).map(
         lambda x, y: model.preprocess_data(x, y, augment=True, epsilon=epsilon),
         num_parallel_calls=tf.data.AUTOTUNE
@@ -33,23 +36,32 @@ def train(backbone: str, output_dir: str, epsilon: float=None):
         num_parallel_calls=tf.data.AUTOTUNE
     ).prefetch(tf.data.AUTOTUNE)
 
-    model.train(output_dir, train_dataset, test_dataset)
+    model.train(epsilon, train_dataset, test_dataset, output_dir)
 
-def evaluate(model_path: str, data_dir: str, report_dir: str, epsilon: float=None):
+@cli.command()
+def evaluate(model_path: str, data_dir: str, report_path: str, epsilon: float=0):
     with open(model_path, "rb") as f:
-        model = pickle.dump(f)
-    
-    images = list()
+        model = pickle.load(f)
+
+    images = tf.zeros([])
     labels = list()
     for filename in os.listdir(data_dir):
-        label = filename.split("_")[0]
+        label = filename.split("_")[0] #"paper_blabla.jpg"
+        label = CLASS2ID[label]
         image = load_image(
             os.path.join(data_dir, filename),
             backbone=model.backbone
         )
         labels.append(label)
-        images.append(image)
-    
-    report = model.evaluate(images, labels, epsilon=epsilon)
-    with open(os.path.join(report_dir, "report.json"), "w") as f:
-        json.dump(report)
+
+        if not len(images.shape):
+            images = image
+        else:
+            images = tf.concat([images, image], 0)
+
+    report = evaluate(model, images, labels, epsilon=epsilon)
+    with open(os.path.join(report_path), "w") as f:
+        json.dump(report, f)
+
+if __name__ == "__main__":
+    cli()
