@@ -4,3 +4,5 @@ scikit-learn
 keras_cv
 ipykernel
 matplotlib
+numpy
+typer

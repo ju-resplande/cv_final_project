@@ -1,5 +1,8 @@
 import keras_cv
-import keras
+import tensorflow as tf
+
+SEED = 812
+tf.keras.utils.set_random_seed(SEED)
 
 ## data
 CLASSES = {
@@ -12,13 +15,12 @@ N_CLASS = len(CLASSES)
 
 ## models
 BACKBONES = {
-    "csp_darknet": keras_cv.models.CSPDarkNetBackbone.from_preset("csp_darknet_tiny_imagenet"),
     "mit_b0": keras_cv.models.MiTBackbone.from_preset("mit_b0_imagenet"),
     "efficientnetv2_b0": keras_cv.models.EfficientNetV2Backbone.from_preset("efficientnetv2_b0_imagenet"),
 }
 
 ## parameters
-OPTIMIZER = keras.optimizers.Adam(learning_rate=1e-5)
+OPTIMIZER = tf.keras.optimizers.Adam(learning_rate=1e-5)
 
 AUGMENT_MODULES = [
     keras_cv.layers.RandomFlip(),
@@ -26,5 +28,13 @@ AUGMENT_MODULES = [
     keras_cv.layers.CutMix(),
 ]
 
+METRICS = [
+    tf.keras.metrics.CategoricalAccuracy(),
+    tf.keras.metrics.TopKCategoricalAccuracy(k=5),
+    tf.keras.metrics.F1Score(average="macro"),
+]
+ACTIVATION = tf.keras.activations.softmax
+LOSS = tf.keras.losses.CategoricalCrossentropy()
+BATCH_SIZE = 8
 EPOCHS = 8
-SEED = 812
+ALPHA = 0.5

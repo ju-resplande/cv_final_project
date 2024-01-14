@@ -13,16 +13,16 @@ import keras_cv
 from config import *
 import utils
 
-keras.utils.set_random_seed(SEED)
+tf.keras.utils.set_random_seed(SEED)
 
-class AdversarialAugmenter(keras_cv.layers.BaseImageAugmentationLayer):
-    def __init__(self, adv_model, sigma,  **kwargs):
+class AugmenterFGSM(keras_cv.layers.BaseImageAugmentationLayer):
+    def __init__(self, adv_model, epsilon,  **kwargs):
         super().__init__(**kwargs)
         self.adv_model = adv_model
-        self.sigma = sigma
+        self.epsilon = epsilon
     
     def augment_image(self, image, transformations=None, **kwargs):
-        adv_image = self.adv_model.generate_adv_image(image, self.sigma)
+        adv_image = self.adv_model.generate_adv_image(image, self.epsilon)
 
         if self.adv_model.backbone == "mit_b0":
             adv_image = tf.image.resize(adv_image, (224, 224))
@@ -49,41 +49,66 @@ class AdversarialAugmenter(keras_cv.layers.BaseImageAugmentationLayer):
     def get_config(self):
         config = {
             "adv_model": self.adv_model,
-            "sigma": self.sigma,
+            "epsilon": self.epsilon,
         }
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
-class ImageModel():
-    def __init__(self, backbone) -> None:
+class ImageClassifierFGSM(keras_cv.models.ImageClassifier):
+    def __init__(self, *args, **kwargs):
+        self.epsilon = kwargs.pop("epsilon", 0)
+        super().__init__(*args, **kwargs)
+    
+    def train_step(self, data):
+        x, y = data
+
+        with tf.GradientTape() as tape_orig:
+            tape_orig.watch(x)
+            y_orig_pred = self(x, training=True)
+            loss_orig = self.compiled_loss(y, y_orig_pred)
+        
+        x_gradient = tape_orig.gradient(loss_orig, x)
+        
+        x_adv = x + self.epsilon*tf.math.sign(x_gradient)
+        with tf.GradientTape() as tape_adv:
+            y_adv_pred = self(x_adv, training=True)
+            loss_adv = self.compiled_loss(y, y_adv_pred)
+            loss = ALPHA*loss_orig + (1-ALPHA)*loss_adv
+
+        trainable_vars = self.trainable_variables
+        gradients = tape_adv.gradient(loss, trainable_vars)
+        self.optimizer.apply_gradients(zip(gradients, trainable_vars))
+        self.compiled_metrics.update_state(y, y_adv_pred)
+
+        return {m.name: m.result() for m in self.metrics}
+
+class ImageClassifierFGSMFramework():
+    def __init__(self, backbone, epsilon=0) -> None:
         self.augment_modules = AUGMENT_MODULES
-
         self.backbone = backbone
+        self.epsilon = epsilon
 
-        self.model = keras_cv.models.ImageClassifier(
+        self.model = ImageClassifierFGSM(
             backbone=BACKBONES[backbone],
             num_classes=N_CLASS,
-            activation="softmax",
+            activation=ACTIVATION,
+            epsilon=epsilon,
         )
-
         self.model.compile(
-            loss='categorical_crossentropy',
+            loss=LOSS,
             optimizer=OPTIMIZER,
-            metrics=[
-                'accuracy',
-                tf.keras.metrics.F1Score(average="macro"),
-            ]
+            metrics=METRICS
         )
-
-    def preprocess_data(self, images, labels, augment=False, sigma=None):
+        
+    def preprocess_data(self, images, labels, augment=False, epsilon=None):
         labels = tf.one_hot(labels, N_CLASS)
         inputs = {"images": images, "labels": labels}
 
         if augment:
             augmenter = self.augment_modules.copy()
             
-            if sigma:
-                augmenter.append(AdversarialAugmenter(self, sigma))
+            if epsilon:
+                augmenter.append(AugmenterFGSM(self, epsilon))
 
             augmenter = keras_cv.layers.Augmenter(augmenter)
             inputs = augmenter(inputs)
@@ -93,7 +118,7 @@ class ImageModel():
 
         return inputs['images'], inputs['labels']
 
-    def generate_adv_image(self, image, sigma, return_pertubations=False):
+    def generate_adv_image(self, image, epsilon, return_pertubations=False):
         self.model.trainable = False
 
         if len(image.shape) == 3:
@@ -108,11 +133,11 @@ class ImageModel():
         with tf.GradientTape() as tape:
             tape.watch(image)
             prediction = self.model(image)
-            loss = tf.keras.losses.CategoricalCrossentropy()(label, prediction)
+            loss = self.model.compiled_loss(label, prediction)
 
         gradient = tape.gradient(loss, image)
         perturbations = tf.sign(gradient)
-        image_adv = image + sigma*perturbations
+        image_adv = image + epsilon*perturbations
 
         if return_pertubations:
             return image_adv, perturbations
@@ -128,7 +153,7 @@ class ImageModel():
             append=True
         )
         pbar = tfa.callbacks.TQDMProgressBar()
-        tensorboard = keras.callbacks.TensorBoard(log_dir=f"{save_dir}/logs")
+        tensorboard = tf.keras.callbacks.TensorBoard(log_dir=f"{save_dir}/logs")
 
         self.model.fit(
             train_dataset,
@@ -148,9 +173,12 @@ class ImageModel():
 
         return image_class, class_confidence, image_probs
 
-    def evaluate(self, images, labels):
+    def evaluate(self, images, labels, epsilon=None):
         predictions = list()
         for image in images:
+            if epsilon:
+                image = self.generate_adv_image(image, epsilon)
+
             image_probs = self.model(image).numpy()
             class_num = np.argmax(image_probs[0])
             predictions.append(class_num)
