@@ -8,11 +8,11 @@ import tensorflow_datasets as tfds
 from typer import Typer
 import tensorflow as tf
 
-tf.keras.utils.set_random_seed(SEED)
-
 from model import ImageClassifierFGSMFramework
 from config import *
 from utils import load_image
+
+tf.keras.utils.set_random_seed(SEED)
 
 cli = Typer()
 
@@ -27,7 +27,7 @@ def train(backbone: str, epsilon: float, output_dir: str):
     )
        
     train_dataset = train_dataset.batch(BATCH_SIZE).map(
-        lambda x, y: model.preprocess_data(x, y, augment=True, epsilon=epsilon),
+        lambda x, y: model.preprocess_data(x, y, augment=True),
         num_parallel_calls=tf.data.AUTOTUNE
     ).prefetch(tf.data.AUTOTUNE)
 
@@ -36,7 +36,7 @@ def train(backbone: str, epsilon: float, output_dir: str):
         num_parallel_calls=tf.data.AUTOTUNE
     ).prefetch(tf.data.AUTOTUNE)
 
-    model.train(epsilon, train_dataset, test_dataset, output_dir)
+    model.train(train_dataset, test_dataset, output_dir)
 
 @cli.command()
 def evaluate(model_path: str, data_dir: str, report_path: str, epsilon: float=0):

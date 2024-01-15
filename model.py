@@ -98,7 +98,7 @@ class ImageClassifierFGSMFramework():
         
         return image_adv
     
-    def train(self, save_dir, train_dataset, test_dataset):
+    def train(self, train_dataset, test_dataset, save_dir):
         os.makedirs(save_dir)
         
         logger = tf.keras.callbacks.CSVLogger(
