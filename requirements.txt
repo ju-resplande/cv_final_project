@@ -4,5 +4,7 @@ scikit-learn
 keras_cv
 ipykernel
 matplotlib
+nbformat>=5.9.0
+plotly
 numpy
 typer
