@@ -59,7 +59,7 @@ def evaluate(model_path: str, data_dir: str, report_path: str, epsilon: float=0)
         else:
             images = tf.concat([images, image], 0)
 
-    report = evaluate(model, images, labels, epsilon=epsilon)
+    report = model.evaluate(images, labels, epsilon=epsilon)
     with open(os.path.join(report_path), "w") as f:
         json.dump(report, f)
 

@@ -127,30 +127,30 @@ class ImageClassifierFGSMFramework():
 
         return image_class, class_confidence, image_probs
 
-def evaluate(self, images, labels, epsilon=None):
-    self.model.trainable = False
-    
-    if epsilon:
-        images = tf.data.Dataset.from_tensor_slices(images)
-        labels2 = tf.data.Dataset.from_tensor_slices(labels)
-        data = tf.data.Dataset.zip((images, labels2))
-        adv_images = data.batch(BATCH_SIZE).map(
-            lambda images, labels2: self.generate_adv_image(images, labels2, epsilon),
-            num_parallel_calls=tf.data.AUTOTUNE
-        ).prefetch(tf.data.AUTOTUNE)
+    def evaluate(self, images, labels, epsilon=None):
+        self.model.trainable = False
+        
+        if epsilon:
+            images = tf.data.Dataset.from_tensor_slices(images)
+            labels2 = tf.data.Dataset.from_tensor_slices(labels)
+            data = tf.data.Dataset.zip((images, labels2))
+            adv_images = data.batch(BATCH_SIZE).map(
+                lambda images, labels2: self.generate_adv_image(images, labels2, epsilon),
+                num_parallel_calls=tf.data.AUTOTUNE
+            ).prefetch(tf.data.AUTOTUNE)
 
-        images = tf.zeros([])
-        for batch in adv_images:
-            if not len(images.shape):
-                images = batch
-            else:
-                images = tf.concat([images, batch], 0)
+            images = tf.zeros([])
+            for batch in adv_images:
+                if not len(images.shape):
+                    images = batch
+                else:
+                    images = tf.concat([images, batch], 0)
 
-    image_probs = self.model(images).numpy()
-    predictions = np.argmax(image_probs, axis=1)
+        image_probs = self.model(images).numpy()
+        predictions = np.argmax(image_probs, axis=1)
 
-    report = classification_report(
-        labels, predictions, output_dict=True
-    )
+        report = classification_report(
+            labels, predictions, output_dict=True
+        )
 
-    return report
+        return report
