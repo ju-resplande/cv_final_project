@@ -32,11 +32,10 @@ AUGMENT_MODULES = [
 
 METRICS = [
     tf.keras.metrics.CategoricalAccuracy(),
-    tf.keras.metrics.TopKCategoricalAccuracy(k=5),
     tf.keras.metrics.F1Score(average="macro"),
 ]
 ACTIVATION = tf.keras.activations.softmax
 LOSS = tf.keras.losses.CategoricalCrossentropy()
-BATCH_SIZE = 4
+BATCH_SIZE = 8
 EPOCHS = 8
 ALPHA = 0.5
