@@ -36,6 +36,6 @@ METRICS = [
 ]
 ACTIVATION = tf.keras.activations.softmax
 LOSS = tf.keras.losses.CategoricalCrossentropy()
-BATCH_SIZE = 8
+BATCH_SIZE = 4
 EPOCHS = 8
 ALPHA = 0.5
