@@ -17,13 +17,13 @@ tf.keras.utils.set_random_seed(SEED)
 cli = Typer()
 
 @cli.command()
-def train(backbone: str, epsilon: float, output_dir: str):
-    model = ImageClassifierFGSMFramework(backbone=backbone, epsilon=epsilon)
+def train(backbone: str, output_dir: str, epsilon: float=0, uniform:str=None):
+    model = ImageClassifierFGSMFramework(backbone=backbone, epsilon=epsilon, uniform=uniform)
     
-    train_dataset, test_dataset = tfds.load(
+    train_dataset = tfds.load(
         'rock_paper_scissors',
         as_supervised=True,
-        split=["train", "test"],
+        split="train",
     )
        
     train_dataset = train_dataset.batch(BATCH_SIZE).map(
@@ -31,12 +31,7 @@ def train(backbone: str, epsilon: float, output_dir: str):
         num_parallel_calls=tf.data.AUTOTUNE
     ).prefetch(tf.data.AUTOTUNE)
 
-    test_dataset = test_dataset.batch(BATCH_SIZE).map(
-        lambda x, y: model.preprocess_data(x, y),
-        num_parallel_calls=tf.data.AUTOTUNE
-    ).prefetch(tf.data.AUTOTUNE)
-
-    model.train(train_dataset, test_dataset, output_dir)
+    model.train(train_dataset, output_dir)
 
 @cli.command()
 def evaluate(model_path: str, data_dir: str, report_path: str, epsilon: float=0):

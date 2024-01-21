@@ -18,6 +18,7 @@ tf.keras.utils.set_random_seed(SEED)
 class ImageClassifierFGSM(keras_cv.models.ImageClassifier):
     def __init__(self, *args, **kwargs):
         self.epsilon = kwargs.pop("epsilon", 0)
+        self.uniform = kwargs.pop("uniform", None)
         super().__init__(*args, **kwargs)
     
     def train_step(self, data):
@@ -29,8 +30,16 @@ class ImageClassifierFGSM(keras_cv.models.ImageClassifier):
             loss_orig = self.compiled_loss(y, y_orig_pred)
         
         x_gradient = tape_orig.gradient(loss_orig, x)
+  
+        if self.uniform == "pixel":
+            epsilon = tf.random.uniform(x.shape[1:], -1, 1)
+        elif self.uniform == "image":
+            epsilon = tf.random.uniform((), -1, 1)
+        elif self.uniform == None:
+            epsilon = self.epsilon
         
-        x_adv = x + self.epsilon*tf.math.sign(x_gradient)
+        x_adv = x + epsilon*tf.math.sign(x_gradient)
+        
         with tf.GradientTape() as tape_adv:
             y_adv_pred = self(x_adv, training=True)
             loss_adv = self.compiled_loss(y, y_adv_pred)
@@ -44,15 +53,17 @@ class ImageClassifierFGSM(keras_cv.models.ImageClassifier):
         return {m.name: m.result() for m in self.metrics}
 
 class ImageClassifierFGSMFramework():
-    def __init__(self, backbone, epsilon) -> None:
+    def __init__(self, backbone, epsilon, uniform) -> None:
         self.backbone = backbone
         self.epsilon = epsilon
+        self.uniform = uniform
 
         self.model = ImageClassifierFGSM(
             backbone=BACKBONES[backbone],
             num_classes=N_CLASS,
             activation=ACTIVATION,
             epsilon=epsilon,
+            uniform=uniform,
         )
         self.model.compile(
             loss=LOSS,
@@ -98,7 +109,7 @@ class ImageClassifierFGSMFramework():
         
         return image_adv
     
-    def train(self, train_dataset, test_dataset, save_dir):
+    def train(self, train_dataset, save_dir):
         os.makedirs(save_dir)
         
         logger = tf.keras.callbacks.CSVLogger(
@@ -108,13 +119,13 @@ class ImageClassifierFGSMFramework():
         )
         pbar = tfa.callbacks.TQDMProgressBar()
         tensorboard = tf.keras.callbacks.TensorBoard(log_dir=f"{save_dir}/logs")
+        early_stopper = tf.keras.callbacks.EarlyStopping(monitor='loss')
 
         self.model.fit(
             train_dataset,
-            validation_data=test_dataset,
             epochs=EPOCHS,
             verbose=0,
-            callbacks=[logger, pbar, tensorboard]
+            callbacks=[logger, pbar, tensorboard, early_stopper]
         )
 
         with open(f"{save_dir}/model.pkl", "wb") as f:
