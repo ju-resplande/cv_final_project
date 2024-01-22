@@ -34,7 +34,7 @@ class ImageClassifierFGSM(keras_cv.models.ImageClassifier):
         if self.uniform == "pixel":
             epsilon = tf.random.uniform(x.shape[1:], -1, 1)
         elif self.uniform == "image":
-            epsilon = tf.random.uniform((), -1, 1)
+            epsilon = tf.random.uniform((), 0, 1)
         elif self.uniform == None:
             epsilon = self.epsilon
         
