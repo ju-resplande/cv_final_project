@@ -20,6 +20,9 @@ pip install -r requirements.txt
 ```
 
 ## Artefatos
+Na pasta [scripts](scripts), estão os arquivos bash usados para realizar os treinos e avaliação.
+Na pasta [output](output), contém as métricas dos resultados gerados.
+
 ### Notebooks
 - [notebooks/example.ipynb](notebooks/example.ipynb): Exemplo de geração de imagem adversária
 - [notebooks/stats.ipynb](notebooks/stats.ipynb): Estaísticas e resultados gerados pós-treino para o relatório e apresentação
@@ -37,3 +40,22 @@ Os conjuntos de dados de teste estão na pasta [data](data), em que:
 - [1](data/1): Fotos das mãos de pedra, papel e tesoura do colega 1
 - [2](data/2): Fotos das mãos de pedra, papel e tesoura do colega 2
 - [3](data/3): Fotos das mãos de pedra, papel e tesoura do colega 3
+
+## Citação
+Os artigos base para realizar esses esxprimentos são:
+```bibtex
+@article{kurakin2016adversarial,
+  title={Adversarial machine learning at scale},
+  author={Kurakin, Alexey and Goodfellow, Ian and Bengio, Samy},
+  journal={arXiv preprint arXiv:1611.01236},
+  year={2016}
+}
+
+@ONLINE{rps,
+author = "Laurence Moroney",
+title = "Rock, Paper, Scissors Dataset",
+month = "feb",
+year = "2019",
+url = "http://laurencemoroney.com/rock-paper-scissors-dataset"
+}
+```
