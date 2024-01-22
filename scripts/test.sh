@@ -1,12 +1,10 @@
 #!/bin/bash
 
 DATA_DIR=data
-#backbones=("mit_b0" "efficientnetv2_b0")
-backbones=("efficientnetv2_b0")
+backbones=("mit_b0" "efficientnetv2_b0")
 epsilons_train=(0 0.1 0.2 0.25 0.3 0.4 0.5 0.6 0.7 0.8 0.9)
-#epsilons_test=(-0.1 -0.2 -0.3 -0.4 -0.5 -0.6 -0.7 -0.8 -0.9 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9)
-epsilons_test=(-0.1 -0.2 -0.3 -0.4 -0.5 -0.6 -0.7 -0.8 -0.9)
-datasets=("test_split" "cv_class")
+epsilons_test=(0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9)
+datasets=("test_split" 0 1 2 3)
 
 for DATASET in ${datasets[@]}; do
     for BACKBONE in ${backbones[@]}; do
