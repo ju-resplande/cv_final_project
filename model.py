@@ -17,8 +17,7 @@ tf.keras.utils.set_random_seed(SEED)
 
 class ImageClassifierFGSM(keras_cv.models.ImageClassifier):
     def __init__(self, *args, **kwargs):
-        self.epsilon = kwargs.pop("epsilon", 0)
-        self.uniform = kwargs.pop("uniform", None)
+        self.epsilon = kwargs.pop("epsilon", None)
         super().__init__(*args, **kwargs)
     
     def train_step(self, data):
@@ -31,12 +30,11 @@ class ImageClassifierFGSM(keras_cv.models.ImageClassifier):
         
         x_gradient = tape_orig.gradient(loss_orig, x)
   
-        if self.uniform == "pixel":
-            epsilon = tf.random.uniform(x.shape[1:], -1, 1)
-        elif self.uniform == "image":
-            epsilon = tf.random.uniform((), 0, 1)
-        elif self.uniform == None:
+        if self.epsilon != None:
             epsilon = self.epsilon
+        else:
+            epsilon = tf.random.uniform((), 0, 1)
+            
         
         x_adv = x + epsilon*tf.math.sign(x_gradient)
         

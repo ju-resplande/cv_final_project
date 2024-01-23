@@ -17,8 +17,8 @@ tf.keras.utils.set_random_seed(SEED)
 cli = Typer()
 
 @cli.command()
-def train(backbone: str, output_dir: str, epsilon: float=0, uniform:str=None):
-    model = ImageClassifierFGSMFramework(backbone=backbone, epsilon=epsilon, uniform=uniform)
+def train(backbone: str, output_dir: str, epsilon: float=None):
+    model = ImageClassifierFGSMFramework(backbone=backbone, epsilon=epsilon)
     
     train_dataset = tfds.load(
         'rock_paper_scissors',
