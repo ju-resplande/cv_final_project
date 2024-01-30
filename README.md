@@ -42,7 +42,7 @@ Os conjuntos de dados de teste estão na pasta [data](data), em que:
 - [3](data/3): Fotos das mãos de pedra, papel e tesoura do colega 3
 
 ## Citação
-Os artigos base para realizar esses esxprimentos são:
+Os artigos base para realizar esses experimentos são:
 ```bibtex
 @article{kurakin2016adversarial,
   title={Adversarial machine learning at scale},
